@@ -152,7 +152,7 @@ typedef struct {
 	output_t *outputs;
 	char *idstation;
 
-	enum { IN_NONE = 0, IN_ALSA, IN_SNDFILE, IN_RTL, IN_AIR, IN_SDRPLAY, IN_SOAPY, IN_HACKRF } inmode;
+	enum { IN_NONE = 0, IN_ALSA, IN_SNDFILE, IN_RTL, IN_AIR, IN_SDRPLAY, IN_SOAPY, IN_HACKRF, IN_IQFILE } inmode;
 
 	// used only during setup
 	float gain;

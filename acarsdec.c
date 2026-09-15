@@ -59,6 +59,7 @@
 #ifdef WITH_SNDFILE
  #include "soundfile.h"
 #endif
+#include "iqfile.h"
 
 runtime_t R = {
 	.mdly = 600,
@@ -75,6 +76,7 @@ static void print_available_ins(void)
 #ifdef WITH_SNDFILE
 		"[--sndfile <file.wav>]",
 #endif
+		"[--iq-file <file>]",
 	};
 
 	const char *const sdropts[] = {
@@ -156,6 +158,11 @@ static void usage(void)
 	fprintf(stderr, "\n --sndfile <file>\t: decode from <file> sampled at a multiple of %u Hz\n", INTRATE);
 	fprintf(stderr, " see \"--sndfile help\" for details\n");
 #endif
+	fprintf(stderr,
+		"\n --iq-file <file>\t: decode wideband raw I/Q samples from <file> (use \"-\" for stdin)\n"
+		" --sample-format <fmt>\t: input sample format for --iq-file: U8 (unsigned 8-bit, e.g. RTL-SDR) or S8 (signed 8-bit, e.g. HackRF) (default: U8)\n"
+		" -c <freq>\t\t: center frequency the capture was tuned to, in MHz (mandatory for --iq-file)\n"
+		" -m <rateMult>\t\t: sample rate multiplier: sample rate is <rateMult> * 12000 S/s (mandatory for --iq-file)\n");
 #ifdef WITH_RTL
 	fprintf(stderr,
 		"\n rtlopts:\n"
@@ -218,6 +225,7 @@ static void sigintHandler(int signum)
 #ifdef WITH_HACKRF
 	runHackrfCancel();
 #endif
+	runIqfileCancel();
 }
 
 static int parse_freqs(char **argv, const int argind)
@@ -307,6 +315,8 @@ int main(int argc, char **argv)
 #ifdef WITH_SOAPY
 		{ "soapysdr", required_argument, NULL, IN_SOAPY },
 #endif
+		{ "iq-file", required_argument, NULL, IN_IQFILE },
+		{ "sample-format", required_argument, NULL, -5 },
 		{ "verbose", no_argument, NULL, 'v' },
 		{ "output", required_argument, NULL, -2 },	// -1 is EOF
 		{ "statsd", required_argument, NULL, -3 },
@@ -339,6 +349,16 @@ int main(int argc, char **argv)
 			R.skip_reassembly = 1;
 			break;
 #endif
+		case -5:
+			if (initIqfileFormat(optarg))
+				exit(1);
+			break;
+		case IN_IQFILE:
+			if (R.inmode)
+				errx(-1, "Only 1 input allowed");
+			R.inmode = IN_IQFILE;
+			inarg = optarg;
+			break;
 		case 'v':
 			R.verbose = 1;
 			break;
@@ -469,6 +489,9 @@ int main(int argc, char **argv)
 		res = initSoundfile(inarg);
 		break;
 #endif
+	case IN_IQFILE:
+		res = initIqfile(inarg);
+		break;
 #ifdef WITH_RTL
 	case IN_RTL:
 		res = initRtl(inarg);
@@ -560,6 +583,10 @@ int main(int argc, char **argv)
 		res = runSoundfileSample();
 		break;
 #endif
+	case IN_IQFILE:
+		res = runIqfileSample();
+		res = runIqfileClose();
+		break;
 #ifdef WITH_RTL
 	case IN_RTL:
 		runRtlSample();
