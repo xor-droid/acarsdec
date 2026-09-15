@@ -47,6 +47,9 @@
 #ifdef WITH_RTL
  #include "rtl.h"
 #endif
+#ifdef WITH_HACKRF
+ #include "hackrf.h"
+#endif
 #ifdef WITH_SOAPY
  #include "soapy.h"
 #endif
@@ -77,6 +80,9 @@ static void print_available_ins(void)
 	const char *const sdropts[] = {
 #ifdef WITH_RTL
 		"[rtlopts]",
+#endif
+#ifdef WITH_HACKRF
+		"[hackrfopts]",
 #endif
 #ifdef WITH_AIR
 		"[airspyopts]",
@@ -160,6 +166,15 @@ static void usage(void)
 		" -m <rateMult>\t\t: set rtl sample rate multiplier: sample rate is <rateMult> * 12000 S/s (default: automatic)\n"
 		" -p <ppm>\t\t: set rtl ppm frequency correction (default: 0)\n");
 #endif
+#ifdef WITH_HACKRF
+	fprintf(stderr,
+		"\n hackrfopts:\n"
+		" --hackrf <serial>\t: decode from HackRF matching serial <serial>, or the first found if omitted\n"
+		" -B <bias>\t\t: enable (1) or disable (0) the antenna port power/bias tee (default is 0)\n"
+		" -c <freq>\t\t: set center frequency to tune to in MHz, e.g. 131.800 (default: automatic)\n"
+		" -g <gain>\t\t: total gain in dB (0-102), split across LNA (8dB steps) and VGA (2dB steps); HackRF has no AGC (default: LNA=32 VGA=40)\n"
+		" -m <rateMult>\t\t: set sample rate multiplier: sample rate is <rateMult> * 12000 S/s, range 2-20 MS/s (default: automatic)\n");
+#endif
 #ifdef WITH_AIR
 	fprintf(stderr,
 		"\n airspyopts:\n"
@@ -199,6 +214,9 @@ static void sigintHandler(int signum)
 	R.running = 0;
 #ifdef WITH_RTL
 	runRtlCancel();
+#endif
+#ifdef WITH_HACKRF
+	runHackrfCancel();
 #endif
 }
 
@@ -276,6 +294,9 @@ int main(int argc, char **argv)
 #endif
 #ifdef WITH_RTL
 		{ "rtlsdr", required_argument, NULL, IN_RTL },
+#endif
+#ifdef WITH_HACKRF
+		{ "hackrf", required_argument, NULL, IN_HACKRF },
 #endif
 #ifdef WITH_AIR
 		{ "airspy", required_argument, NULL, IN_AIR },
@@ -363,6 +384,14 @@ int main(int argc, char **argv)
 			inarg = optarg;
 			break;
 #endif
+#ifdef WITH_HACKRF
+		case IN_HACKRF:
+			if (R.inmode)
+				errx(-1, "Only 1 input allowed");
+			R.inmode = IN_HACKRF;
+			inarg = optarg;
+			break;
+#endif
 #ifdef WITH_SDRPLAY
 		case IN_SDRPLAY:
 			if (R.inmode)
@@ -443,6 +472,11 @@ int main(int argc, char **argv)
 #ifdef WITH_RTL
 	case IN_RTL:
 		res = initRtl(inarg);
+		break;
+#endif
+#ifdef WITH_HACKRF
+	case IN_HACKRF:
+		res = initHackrf(inarg);
 		break;
 #endif
 #ifdef WITH_AIR
@@ -530,6 +564,12 @@ int main(int argc, char **argv)
 	case IN_RTL:
 		runRtlSample();
 		res = runRtlClose();
+		break;
+#endif
+#ifdef WITH_HACKRF
+	case IN_HACKRF:
+		runHackrfSample();
+		res = runHackrfClose();
 		break;
 #endif
 #ifdef WITH_AIR
